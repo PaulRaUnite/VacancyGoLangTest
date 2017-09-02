@@ -1,14 +1,12 @@
 # Go Lang vacancy test
 
-This is a task for Go programmer vacancy at Geeks.Team
+This is my realization of the task below for Go programmer vacancy at [Geeks.Team](https://geeks.team).
 
-![geeks](https://github.com/geeksteam/VacancyGoLangTest/raw/master/logo-git.png)
+## About current realization
 
+Requires: `Golang 1.8+`
 
-
-If any questions about task, join the chat at our Gitter [![https://gitter.im/geeksteam/Vacancies](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/geeksteam/ReactVacancy) or mailto _vacancy @ geeks.team_.
-
-As a test for your begginer Go lang skills we ask you to create a simple web-server.
+## Problem
 
 Using Gin framework <https://github.com/gin-gonic/gin> create a web server with a handler `/checkText`.
 Handler will listen for `POST` request with such `JSON`:
@@ -45,8 +43,3 @@ type Response struct {
 ```
 
 * If text was not found return `HTTP Code 204 No Content`.
-
-Your test web-server must be provided at your Github repo. Just send as a link.
-
-
-If any questions about task, join the chat at our Gitter [![https://gitter.im/geeksteam/Vacancies](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/geeksteam/ReactVacancy) or mailto _vacancy @ geeks.team_.
