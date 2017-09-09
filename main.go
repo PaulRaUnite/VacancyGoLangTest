@@ -8,11 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
-	"github.com/PaulRaUnite/VacancyGoLangTest/util"
+	"bytes"
 	"github.com/gin-gonic/gin"
+	"github.com/valyala/fasthttp"
+)
+
+const (
+	TIMEOUT time.Duration = 5 * time.Second
+	PORT    string        = ":8080"
 )
 
 func main() {
@@ -25,7 +30,7 @@ func main() {
 	router.POST("/checkText", textChecker)
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    PORT,
 		Handler: router,
 	}
 
@@ -41,14 +46,14 @@ func main() {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Println("Shutdown Server ...")
+	log.Println("Shutdown Server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server Shutdown:", err)
 	}
-	log.Println("Server exist")
+	log.Println("Server was shutdowned.")
 }
 
 func textChecker(c *gin.Context) {
@@ -62,59 +67,22 @@ func textChecker(c *gin.Context) {
 		return
 	}
 
-	// Create channel for workers
-	// of amount of pages.
-	// Buffer is important, because
-	// all of workers can return
-	// urls, so channel and WaitGroup
-	// can make deadlock without it.
-	outcome := make(chan string, len(req.Site))
-	wg := sync.WaitGroup{}
+	bb := fasthttp.AcquireByteBuffer()
+	searchTextBytes := []byte(req.SearchText)
 	for _, site := range req.Site {
-		// Start concurrent workers.
-		wg.Add(1)
-		go scan(site, req.SearchText, outcome, &wg)
+		// Get page's content.
+		status, body, err := fasthttp.GetTimeout(bb.B, site, TIMEOUT)
+		if err != nil || status != 200 {
+			return
+		}
+		if bytes.Contains(body, searchTextBytes) {
+			c.JSON(http.StatusOK, Response{site})
+			fasthttp.ReleaseByteBuffer(bb)
+			return
+		}
 	}
-
-	// Wait for workers.
-	wg.Wait()
-	close(outcome)
-
-	// Get the first site where the text was found.
-	page, ok := <-outcome
-	if ok {
-		c.JSON(http.StatusOK, Response{page})
-	} else {
-		c.AbortWithStatus(http.StatusNoContent)
-	}
-}
-
-var timeoutClient = &http.Client{
-	Timeout: 10 * time.Second,
-}
-
-func scan(url, text string, out chan<- string, group *sync.WaitGroup) {
-	// Done work in all cases.
-	defer func() {
-		group.Done()
-	}()
-
-	// Get page's content.
-	resp, err := timeoutClient.Get(url)
-	if err != nil {
-		return
-	}
-
-	// Searching text on the url "streamly".
-	// Not sure(it means I have no benchmarks)
-	// that it is faster than naїve
-	// searching but it doesn't require
-	// additional memory for byte slice,
-	// so maybe it is.
-	if util.Search(resp.Body, text) {
-		// Return url.
-		out <- url
-	}
+	fasthttp.ReleaseByteBuffer(bb)
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 // Request contains sites and string
